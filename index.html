@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OMC + Superpowers 런북</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-inner">
+      <span class="header-title">OMC + Superpowers 런북</span>
+      <div class="header-right">
+        <span class="progress-label" id="progress-label"></span>
+        <button class="btn-reset" id="reset-btn">↺ 초기화</button>
+      </div>
+    </div>
+    <div class="progress-track">
+      <div class="progress-bar" id="progress-bar"></div>
+    </div>
+  </header>
+
+  <div class="layout">
+    <nav class="sidebar" id="sidebar" role="navigation" aria-label="단계 목록"></nav>
+    <main class="content" id="content" role="main"></main>
+  </div>
+
+  <script src="runbook.js"></script>
+</body>
+</html>
