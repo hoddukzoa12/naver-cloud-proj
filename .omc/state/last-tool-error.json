@@ -1,7 +1,0 @@
-{
-  "tool_name": "Bash",
-  "tool_input_preview": "{\"command\":\"dir \\\"C:\\\\Users\\\\Administrator\\\\Downloads\\\\claude\\\\proj5\\\" /b\",\"description\":\"List files in project directory\"}",
-  "error": "Exit code 2\ndir: cannot access '/b': No such file or directory\nC\\:\\\\Users\\\\Administrator\\\\Downloads\\\\claude\\\\proj5:\nAGENTS.md   MCP_REFERENCE.md\t  PROJECT_TEAM_REVIEW.md  style.css\ndocs\t    PLAN.md\t\t  README.md\nindex.html  PROJECT_QUESTIONS.md  runbook.js",
-  "timestamp": "2026-05-31T07:28:53.840Z",
-  "retry_count": 1
-}

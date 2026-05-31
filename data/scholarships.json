@@ -1,0 +1,178 @@
+[
+  {
+    "id": "kosaf-blue-ladder-demo",
+    "name": "한국장학재단 푸른등대 기부장학금 (데모)",
+    "organization": { "name": "한국장학재단", "type": "government" },
+    "amount": { "text": "생활비 200만~300만 원 내외(회차별 상이)", "max_krw": 3000000, "category": "living" },
+    "deadline": { "start": "2026-05-20", "end": "2026-06-28", "text": "데모 일정: 2026-05-20 ~ 2026-06-28" },
+    "eligibility": {
+      "student_levels": ["undergraduate"],
+      "school_names": [],
+      "majors": [],
+      "income_band_min": 0,
+      "income_band_max": 8,
+      "notes": ["학자금 지원구간, 성적, 기부처별 세부 조건은 회차 공고 확인", "공식 공고와 신청 화면에서 최신 조건 재확인 필요"]
+    },
+    "description": "한국장학재단의 기부장학금 계열을 예시로 둔 샘플 데이터입니다. 실제 모집 여부와 금액은 공식 공고에서 확인해야 합니다.",
+    "tags": ["한국장학재단", "생활비", "학부생", "공식공고우선"],
+    "source_kind": "official-link-demo",
+    "verification_status": "verified",
+    "source_url": "https://www.kosaf.go.kr/ko/scholar.do?pg=scholarship05_11_01",
+    "apply_url": "https://www.kosaf.go.kr/",
+    "updated_at": "2026-05-31"
+  },
+  {
+    "id": "kosaf-national-scholarship-demo",
+    "name": "국가장학금 Ⅰ유형/다자녀 계열 (데모)",
+    "organization": { "name": "한국장학재단", "type": "government" },
+    "amount": { "text": "등록금 범위 내 차등 지원", "max_krw": 5700000, "category": "tuition" },
+    "deadline": { "start": "2026-06-01", "end": "2026-07-05", "text": "데모 일정: 2026-06-01 ~ 2026-07-05" },
+    "eligibility": {
+      "student_levels": ["undergraduate"],
+      "school_names": [],
+      "majors": [],
+      "income_band_min": 0,
+      "income_band_max": 8,
+      "notes": ["대한민국 국적 대학생", "성적/이수학점/소득구간 기준은 학기별 공고 확인"]
+    },
+    "description": "대학생 등록금 부담 완화를 위한 국가장학금 계열을 검색 UX 검증용으로 넣은 데모 항목입니다.",
+    "tags": ["국가장학금", "등록금", "학자금지원구간", "학부생"],
+    "source_kind": "official-link-demo",
+    "verification_status": "verified",
+    "source_url": "https://www.kosaf.go.kr/",
+    "apply_url": "https://www.kosaf.go.kr/",
+    "updated_at": "2026-05-31"
+  },
+  {
+    "id": "gachon-school-scholarship-demo",
+    "name": "가천대학교 교내 장학 공지 탐색 (데모)",
+    "organization": { "name": "가천대학교", "type": "school" },
+    "amount": { "text": "등록금 일부/전액 또는 생활비형, 공고별 상이", "max_krw": 4000000, "category": "mixed" },
+    "deadline": { "start": "2026-05-15", "end": "2026-06-20", "text": "데모 일정: 2026-05-15 ~ 2026-06-20" },
+    "eligibility": {
+      "student_levels": ["undergraduate", "graduate"],
+      "school_names": ["가천대학교"],
+      "majors": [],
+      "income_band_min": 0,
+      "income_band_max": 10,
+      "notes": ["교내 포털/학생지원처 공지 확인", "성적우수/가계곤란/근로 등 유형별 요건 상이"]
+    },
+    "description": "특정 학교 입력 시 본부·학생지원처·학과 공지를 같이 보라는 k-skill 탐색 규칙을 반영한 샘플입니다.",
+    "tags": ["가천대학교", "교내장학", "학교공지"],
+    "source_kind": "official-link-demo",
+    "verification_status": "unverified",
+    "source_url": "https://www.gachon.ac.kr/",
+    "apply_url": "https://www.gachon.ac.kr/",
+    "updated_at": "2026-05-31"
+  },
+  {
+    "id": "samsung-dream-demo",
+    "name": "삼성꿈장학재단 대학희망/멘토링 계열 (데모)",
+    "organization": { "name": "삼성꿈장학재단", "type": "foundation" },
+    "amount": { "text": "생활비/학업장려비 성격, 프로그램별 상이", "max_krw": 2400000, "category": "living" },
+    "deadline": { "start": "2026-07-01", "end": "2026-07-25", "text": "데모 일정: 2026-07-01 ~ 2026-07-25" },
+    "eligibility": {
+      "student_levels": ["undergraduate", "all"],
+      "school_names": [],
+      "majors": [],
+      "income_band_min": 0,
+      "income_band_max": 6,
+      "notes": ["교육소외계층/멘토링/성장지원 등 프로그램별 조건 확인", "재단 공식 모집요강 우선"]
+    },
+    "description": "민간재단 장학금 필터링과 생활비형 장학금 탐색을 보여주기 위한 샘플입니다.",
+    "tags": ["민간재단", "생활비", "멘토링"],
+    "source_kind": "official-link-demo",
+    "verification_status": "verified",
+    "source_url": "https://www.sdream.or.kr/w/web60gV",
+    "apply_url": "https://www.sdream.or.kr/",
+    "updated_at": "2026-05-31"
+  },
+  {
+    "id": "seoul-local-demo",
+    "name": "서울시/지자체 대학생 지원사업 (데모)",
+    "organization": { "name": "서울특별시", "type": "local-government" },
+    "amount": { "text": "생활비 또는 활동비, 사업별 상이", "max_krw": 1500000, "category": "living" },
+    "deadline": { "start": "2026-04-01", "end": "2026-05-10", "text": "데모 일정: 2026-04-01 ~ 2026-05-10" },
+    "eligibility": {
+      "student_levels": ["undergraduate"],
+      "school_names": [],
+      "majors": [],
+      "income_band_min": 0,
+      "income_band_max": 10,
+      "notes": ["거주지/소재지/활동 조건 확인", "지자체 공고는 최신 회차 재검색 필요"]
+    },
+    "description": "지자체/공공기관 장학·지원사업을 상태 필터(마감됨)로 확인하는 데모 항목입니다.",
+    "tags": ["지자체", "생활비", "공공기관"],
+    "source_kind": "official-link-demo",
+    "verification_status": "unverified",
+    "source_url": "https://www.seoul.go.kr/",
+    "apply_url": "https://www.seoul.go.kr/",
+    "updated_at": "2026-05-31"
+  },
+  {
+    "id": "company-csr-demo",
+    "name": "기업 CSR 미래인재 장학금 (데모)",
+    "organization": { "name": "기업/기업재단", "type": "company" },
+    "amount": { "text": "연 500만 원 수준, 기업별 상이", "annual_krw": 5000000, "category": "mixed" },
+    "deadline": { "start": "2026-06-15", "end": "2026-08-15", "text": "데모 일정: 2026-06-15 ~ 2026-08-15" },
+    "eligibility": {
+      "student_levels": ["undergraduate", "graduate", "all"],
+      "school_names": [],
+      "majors": ["공학", "컴퓨터공학", "AI", "데이터"],
+      "income_band_min": 0,
+      "income_band_max": 10,
+      "notes": ["전공/프로젝트/면접 조건이 붙는 경우 많음", "기업 공식 CSR 또는 재단 공고 링크 확인"]
+    },
+    "description": "기업 장학금 필터와 전공 키워드 검색을 보여주기 위한 샘플입니다.",
+    "tags": ["기업", "CSR", "공학", "AI"],
+    "source_kind": "demo-only",
+    "verification_status": "unverified",
+    "source_url": "https://www.ncloud.com/intro/news",
+    "apply_url": "",
+    "updated_at": "2026-05-31"
+  },
+  {
+    "id": "graduate-foundation-demo",
+    "name": "대학원 연구장려 재단 장학금 (데모)",
+    "organization": { "name": "민간연구재단", "type": "foundation" },
+    "amount": { "text": "학기당 250만 원", "per_semester_krw": 2500000, "category": "living" },
+    "deadline": { "start": "2026-06-05", "end": "2026-06-25", "text": "데모 일정: 2026-06-05 ~ 2026-06-25" },
+    "eligibility": {
+      "student_levels": ["graduate"],
+      "school_names": [],
+      "majors": ["컴퓨터공학", "인공지능", "소프트웨어"],
+      "income_band_min": 0,
+      "income_band_max": 10,
+      "notes": ["연구계획서/추천서 요구 가능", "학과/대학원 공지 첨부파일까지 확인"]
+    },
+    "description": "대학원생과 전공 기반 검색을 검증하기 위한 샘플 데이터입니다.",
+    "tags": ["대학원", "연구장려", "컴퓨터공학"],
+    "source_kind": "demo-only",
+    "verification_status": "unverified",
+    "source_url": "https://www.nrf.re.kr/",
+    "apply_url": "",
+    "updated_at": "2026-05-31"
+  },
+  {
+    "id": "work-study-demo",
+    "name": "대학생 근로/활동 장학금 (데모)",
+    "organization": { "name": "대학/공공기관", "type": "other" },
+    "amount": { "text": "시간당 활동비 또는 월별 장학금", "max_krw": 1200000, "category": "living" },
+    "deadline": { "start": "2026-05-01", "end": "2026-06-10", "text": "데모 일정: 2026-05-01 ~ 2026-06-10" },
+    "eligibility": {
+      "student_levels": ["undergraduate"],
+      "school_names": [],
+      "majors": [],
+      "income_band_min": 0,
+      "income_band_max": 10,
+      "notes": ["근로 가능 시간, 선발 우선순위, 중복수혜 제한 확인", "교내/한국장학재단 공고 동시 확인"]
+    },
+    "description": "근로장학, 활동장학처럼 제목에 '장학금'이 직접 들어가지 않을 수 있는 공고까지 검색하라는 규칙을 반영했습니다.",
+    "tags": ["근로장학", "활동비", "생활비"],
+    "source_kind": "demo-only",
+    "verification_status": "unverified",
+    "source_url": "https://www.kosaf.go.kr/",
+    "apply_url": "https://www.kosaf.go.kr/",
+    "updated_at": "2026-05-31"
+  }
+]

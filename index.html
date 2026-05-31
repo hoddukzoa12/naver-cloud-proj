@@ -3,28 +3,185 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>OMC + Superpowers 런북</title>
+  <title>Scholarship Radar · 대학생 장학금 검색</title>
+  <meta name="description" content="공식 공고 우선 원칙으로 대학생 장학금을 검색하고 CLOVA Studio로 공고문을 요약하는 MVP">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <header class="app-header">
-    <div class="header-inner">
-      <span class="header-title">OMC + Superpowers 런북</span>
-      <div class="header-right">
-        <span class="progress-label" id="progress-label"></span>
-        <button class="btn-reset" id="reset-btn">↺ 초기화</button>
+  <header class="hero">
+    <nav class="topbar" aria-label="서비스 상단 메뉴">
+      <a class="brand" href="#top" aria-label="Scholarship Radar 홈">
+        <span class="brand-mark">SR</span>
+        <span>Scholarship Radar</span>
+      </a>
+      <div class="nav-links">
+        <a href="#search">검색</a>
+        <a href="#summary">AI 요약</a>
+        <a href="#principles">원칙</a>
       </div>
-    </div>
-    <div class="progress-track">
-      <div class="progress-bar" id="progress-bar"></div>
-    </div>
+    </nav>
+
+    <section id="top" class="hero-grid">
+      <div>
+        <p class="eyebrow">Naver Cloud CLOVA Studio × k-skill scholarship workflow</p>
+        <h1>대학생 장학금 공고를<br>조건별로 빠르게 좁혀봐.</h1>
+        <p class="hero-copy">
+          한국장학재단, 대학, 재단, 기업, 지자체 공고를 공식 링크 기준으로 정리하고,
+          긴 모집요강은 CLOVA Studio 요약 API로 핵심만 뽑는 장학금 검색 MVP야.
+        </p>
+        <div class="hero-actions">
+          <a class="btn primary" href="#search">장학금 검색하기</a>
+          <a class="btn ghost" href="#summary">공고문 요약하기</a>
+        </div>
+      </div>
+      <aside class="hero-card" aria-label="서비스 상태">
+        <span class="status-pill">데모 데이터</span>
+        <strong>공식 공고 우선</strong>
+        <p>샘플 데이터는 최신 모집을 보장하지 않아. 최종 신청 전 공식 공고와 신청 링크를 반드시 확인해야 해.</p>
+        <dl class="metric-grid">
+          <div><dt id="metric-total">0</dt><dd>샘플 공고</dd></div>
+          <div><dt id="metric-open">0</dt><dd>지원 가능</dd></div>
+          <div><dt id="metric-favorites">0</dt><dd>저장</dd></div>
+        </dl>
+      </aside>
+    </section>
   </header>
 
-  <div class="layout">
-    <nav class="sidebar" id="sidebar" role="navigation" aria-label="단계 목록"></nav>
-    <main class="content" id="content" role="main"></main>
-  </div>
+  <main>
+    <section id="search" class="panel search-panel">
+      <div class="section-head">
+        <p class="eyebrow">Scholarship search</p>
+        <h2>조건으로 필터링</h2>
+        <p>k-skill의 장학금 검색 규칙을 UI 필터로 옮겼어. 학교, 기관 유형, 학자금 지원구간, 금액, 상태를 조합해봐.</p>
+      </div>
 
+      <form id="filter-form" class="filters" autocomplete="off">
+        <label>
+          키워드
+          <input id="keyword" name="keyword" type="search" placeholder="예: 생활비, 컴퓨터공학, 국가장학금">
+        </label>
+        <label>
+          학교명
+          <input id="schoolName" name="schoolName" type="text" placeholder="예: 가천대학교, 서울대">
+        </label>
+        <label>
+          기관 유형
+          <select id="orgType" name="orgType">
+            <option value="all">전체</option>
+            <option value="school">학교</option>
+            <option value="foundation">재단</option>
+            <option value="government">정부/공공기관</option>
+            <option value="local-government">지자체</option>
+            <option value="company">기업</option>
+            <option value="other">기타</option>
+          </select>
+        </label>
+        <label>
+          학생 구분
+          <select id="studentLevel" name="studentLevel">
+            <option value="all">전체</option>
+            <option value="undergraduate">학부생</option>
+            <option value="graduate">대학원생</option>
+          </select>
+        </label>
+        <label>
+          장학금 유형
+          <select id="scholarshipType" name="scholarshipType">
+            <option value="all">전체</option>
+            <option value="tuition">등록금형</option>
+            <option value="living">생활비형</option>
+            <option value="mixed">혼합형</option>
+          </select>
+        </label>
+        <label>
+          학자금 지원구간
+          <input id="incomeBand" name="incomeBand" type="number" min="0" max="10" placeholder="예: 5">
+        </label>
+        <label>
+          최소 금액(원)
+          <input id="minAmount" name="minAmount" type="number" min="0" step="100000" placeholder="예: 2000000">
+        </label>
+        <label>
+          상태
+          <select id="status" name="status">
+            <option value="all">전체</option>
+            <option value="open">지금 지원 가능</option>
+            <option value="upcoming">곧 열림</option>
+            <option value="closed">마감됨</option>
+          </select>
+        </label>
+        <label class="check-row">
+          <input id="verifiedOnly" name="verifiedOnly" type="checkbox">
+          공식 검증 링크만
+        </label>
+        <div class="filter-actions">
+          <button class="btn primary" type="submit">필터 적용</button>
+          <button class="btn ghost" type="button" id="reset-filters">초기화</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="results-layout" aria-live="polite">
+      <div>
+        <div class="result-toolbar">
+          <h2>검색 결과 <span id="result-count">0</span>개</h2>
+          <span id="today-label" class="subtle"></span>
+        </div>
+        <div id="scholarship-list" class="card-list"></div>
+      </div>
+      <aside id="detail-panel" class="detail-panel">
+        <p class="empty-state">왼쪽에서 장학금을 선택하면 상세 조건과 AI 요약 버튼이 나와.</p>
+      </aside>
+    </section>
+
+    <section id="summary" class="panel summary-panel">
+      <div class="section-head">
+        <p class="eyebrow">CLOVA Studio summarization</p>
+        <h2>공고문 붙여넣고 요약</h2>
+        <p>서버의 <code>/api/summary</code>가 CLOVA Studio 요약 API를 대신 호출해. API 키가 없으면 로컬 데모 요약으로 동작해.</p>
+      </div>
+      <label class="wide-label">
+        공고문 텍스트
+        <textarea id="notice-text" rows="8" placeholder="장학금 모집요강 본문을 붙여넣어봐. 신청 기간, 지원 자격, 금액, 제출서류를 중심으로 요약해줄게."></textarea>
+      </label>
+      <div class="summary-actions">
+        <button class="btn primary" id="summarize-notice" type="button">CLOVA로 요약</button>
+        <span id="summary-status" class="subtle"></span>
+      </div>
+      <article id="summary-output" class="summary-output" hidden></article>
+    </section>
+
+    <section id="principles" class="principles">
+      <article>
+        <h3>공식 공고 우선</h3>
+        <p>KOSAF, 대학 공식 도메인, 공공기관, 재단·기업 공식 페이지를 우선하고 블로그/커뮤니티는 단서로만 사용해.</p>
+      </article>
+      <article>
+        <h3>조건 정규화</h3>
+        <p>기관 유형, 등록금/생활비, 학자금 지원구간, 학부/대학원 여부를 구조화해서 필터링해.</p>
+      </article>
+      <article>
+        <h3>키 보안</h3>
+        <p>CLOVA Studio API 키는 브라우저에 넣지 않고 서버 환경변수에서만 읽어. 프론트에는 요약 결과만 전달해.</p>
+      </article>
+    </section>
+  </main>
+
+  <template id="card-template">
+    <article class="scholarship-card">
+      <div class="card-top">
+        <span class="badge status"></span>
+        <button class="favorite-btn" type="button" aria-label="관심 장학금 저장">☆</button>
+      </div>
+      <h3></h3>
+      <p class="card-desc"></p>
+      <div class="chip-row"></div>
+      <dl class="card-meta"></dl>
+      <button class="btn small" type="button">상세 보기</button>
+    </article>
+  </template>
+
+  <script src="scholarship-core.js"></script>
   <script src="runbook.js"></script>
 </body>
 </html>

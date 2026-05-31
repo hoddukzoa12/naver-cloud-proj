@@ -1,0 +1,23 @@
+# Environment / secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+
+# Dependencies / build
+node_modules/
+dist/
+build/
+coverage/
+
+# Agent/generated state
+.omc/state/
+.claude/
+*.jsonl
+
+# OS/editor
+.DS_Store
+.vscode/
+.idea/
