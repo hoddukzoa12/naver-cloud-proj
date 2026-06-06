@@ -87,7 +87,7 @@ function ScholarshipCard({ item, onClick }) {
       <div className="sr-card-meta">
         <span className="sr-meta-amt">{won(item.amountSemester)}<i>/ 학기</i></span>
         <span className="sr-meta-sep" />
-        <span className="sr-meta-dl"><Icon.calendar s={14} c="var(--muted)" />{item.deadline.slice(5).replace('-', '.')} 마감</span>
+        <span className="sr-meta-dl"><Icon.calendar s={14} c="var(--muted)" />{item.deadline ? item.deadline.slice(5).replace('-', '.') : '미정'} 마감</span>
       </div>
     </button>
   );

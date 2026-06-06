@@ -218,7 +218,7 @@ function DetailScreen({ item, onBack, onSummary, onNotice, onApply }) {
 
         <div className="sr-infocard sr-inforow">
           <div className="sr-infocard-h" style={{ margin: 0 }}><Icon.calendar s={16} c="var(--blue)" /> 마감일</div>
-          <span className="sr-deadval">{item.deadline.replace(/-/g, '.')} {item.status !== '마감' && <em>({dlabel(d)})</em>}</span>
+          <span className="sr-deadval">{item.deadline ? item.deadline.replace(/-/g, '.') : '미정'} {item.status !== '마감' && <em>({dlabel(d)})</em>}</span>
         </div>
 
         <div className="sr-infocard">

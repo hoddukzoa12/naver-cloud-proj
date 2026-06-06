@@ -2,27 +2,10 @@ const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
-const {
-  buildClovaSummaryPayload,
-  localFallbackSummary,
-} = require('./scholarship-core.js');
 
 const ROOT = __dirname;
-const PORT = Number(process.env.PORT || 8787);
-const CLOVA_ENDPOINT = 'https://clovastudio.stream.ntruss.com/v1/api-tools/summarization/v2';
-const MAX_BODY_BYTES = 120_000;
 
-const MIME = {
-  '.html': 'text/html; charset=utf-8',
-  '.css': 'text/css; charset=utf-8',
-  '.js': 'application/javascript; charset=utf-8',
-  '.json': 'application/json; charset=utf-8',
-  '.md': 'text/markdown; charset=utf-8',
-  '.txt': 'text/plain; charset=utf-8',
-};
-
-loadDotEnv(path.join(ROOT, '.env'));
-
+// .env를 db.js require 전에 반드시 먼저 로드해야 DB_AVAILABLE이 올바르게 계산됨
 function loadDotEnv(filePath) {
   if (!fs.existsSync(filePath)) return;
   const lines = fs.readFileSync(filePath, 'utf8').split(/\r?\n/);
@@ -36,6 +19,28 @@ function loadDotEnv(filePath) {
     if (key && process.env[key] === undefined) process.env[key] = value;
   }
 }
+loadDotEnv(path.join(ROOT, '.env'));
+
+const {
+  buildClovaSummaryPayload,
+  localFallbackSummary,
+  localFallbackChat,
+} = require('./scholarship-core.js');
+const { DB_AVAILABLE, query: dbQuery } = require('./db.js');
+
+const PORT = Number(process.env.PORT || 8787);
+const CLOVA_ENDPOINT = 'https://clovastudio.stream.ntruss.com/v1/api-tools/summarization/v2';
+const CLOVA_CHAT_ENDPOINT = 'https://clovastudio.stream.ntruss.com/v1/chat-completions/HCX-DASH-001';
+const MAX_BODY_BYTES = 120_000;
+
+const MIME = {
+  '.html': 'text/html; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.js': 'application/javascript; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.md': 'text/markdown; charset=utf-8',
+  '.txt': 'text/plain; charset=utf-8',
+};
 
 function sendJson(res, status, payload) {
   const body = JSON.stringify(payload, null, 2);
@@ -110,6 +115,149 @@ async function callClovaSummary(text) {
   };
 }
 
+function mapDbRow(r) {
+  return {
+    id: r.id,
+    name: r.name,
+    org: r.org,
+    type: r.type,
+    status: r.status,
+    tier: r.tier,
+    tierMin: r.tier_min,
+    tierMax: r.tier_max,
+    amountSemester: r.amount_semester,
+    amountYear: r.amount_year,
+    deadline: r.deadline,
+    verification_status: r.verification_status,
+    eligibility: r.eligibility,
+    noticeUrl: r.notice_url,
+    applyUrl: r.apply_url,
+  };
+}
+
+// DB에서 메시지 키워드로 장학금 검색 (최대 10개)
+async function searchScholarships(message) {
+  if (!DB_AVAILABLE) return [];
+  try {
+    const kw = `%${message}%`;
+    const result = await dbQuery(
+      `SELECT id, name, org, type, status, tier, tier_min, tier_max,
+              amount_semester, amount_year, deadline, verification_status,
+              eligibility, notice_url, apply_url
+       FROM scholarships
+       WHERE status IN ('모집중', '예정')
+         AND (name ILIKE $1 OR org ILIKE $1 OR type ILIKE $1 OR eligibility::text ILIKE $1)
+       ORDER BY deadline ASC NULLS LAST
+       LIMIT 10`,
+      [kw],
+    );
+    return result.rows.map(mapDbRow);
+  } catch {
+    // 키워드 검색 실패 시 모집중 전체 반환
+    try {
+      const result = await dbQuery(
+        `SELECT id, name, org, type, status, tier, tier_min, tier_max,
+                amount_semester, amount_year, deadline, verification_status,
+                eligibility, notice_url, apply_url
+         FROM scholarships
+         WHERE status IN ('모집중', '예정')
+         ORDER BY deadline ASC NULLS LAST
+         LIMIT 10`,
+      );
+      return result.rows.map(mapDbRow);
+    } catch {
+      return [];
+    }
+  }
+}
+
+function buildRagContext(scholarships) {
+  if (!scholarships.length) return '현재 조건에 맞는 장학금 정보가 없습니다.';
+  return scholarships.map((s, i) =>
+    `[${i + 1}] ${s.name}\n  기관: ${s.org}\n  유형: ${s.type}\n  구간: ${s.tier}\n  금액(학기): ${s.amount_semester ? s.amount_semester.toLocaleString() + '원' : '미정'}\n  마감: ${s.deadline || '미정'}\n  상태: ${s.status}\n  자격: ${Array.isArray(s.eligibility) ? s.eligibility.join(', ') : s.eligibility || '-'}\n  공고: ${s.notice_url || '-'}`,
+  ).join('\n\n');
+}
+
+async function callClovaChat(message, scholarships) {
+  const apiKey = process.env.CLOVA_STUDIO_API_KEY;
+  if (!apiKey) return localFallbackChat(message, scholarships);
+
+  const context = buildRagContext(scholarships);
+  const systemPrompt = `당신은 대학생 장학금 안내 전문가입니다.
+아래 제공된 공식 장학금 목록에서만 답변하세요.
+목록에 없는 장학금을 임의로 만들지 마세요.
+미검증(unverified) 장학금은 "공식 공고를 꼭 확인하세요"라고 안내하세요.
+한국어로 친절하게 답변하세요.`;
+
+  const userContent = `${message}\n\n[참고 장학금 목록]\n${context}`;
+
+  try {
+    const requestId = process.env.CLOVA_STUDIO_REQUEST_ID || crypto.randomUUID();
+    const res = await fetch(CLOVA_CHAT_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        Authorization: bearerValue(apiKey),
+        'X-NCP-CLOVASTUDIO-REQUEST-ID': requestId,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userContent },
+        ],
+        maxTokens: 1024,
+        temperature: 0.5,
+        topP: 0.8,
+        repeatPenalty: 5.0,
+        includeAiFilters: true,
+      }),
+      signal: AbortSignal.timeout(30000),
+    });
+    const data = await res.json().catch(() => ({}));
+    const statusCode = String(data?.status?.code || '');
+    const isClovaSuccess = !statusCode || statusCode === '20000';
+    if (!res.ok || !isClovaSuccess) {
+      return {
+        ...localFallbackChat(message, scholarships),
+        warning: `HyperCLOVA X 호출 실패(${res.status}/${statusCode}): ${data?.status?.message || 'unknown'}`,
+      };
+    }
+    return {
+      provider: 'hyperclova-x',
+      mock: false,
+      reply: data?.result?.message?.content || '응답을 가져오지 못했어요.',
+      scholarships,
+      source: 'hyperclova',
+    };
+  } catch (err) {
+    return {
+      ...localFallbackChat(message, scholarships),
+      warning: `HyperCLOVA X 연결 오류: ${err.message}`,
+    };
+  }
+}
+
+async function handleChat(req, res) {
+  try {
+    const body = await collectJson(req);
+    const message = String(body.message || '').trim();
+    if (!message) return sendJson(res, 400, { error: 'message 필드가 필요합니다.' });
+
+    const scholarships = await searchScholarships(message);
+    const result = await callClovaChat(message, scholarships);
+    return sendJson(res, 200, {
+      ok: true,
+      reply: result.reply,
+      scholarships: result.scholarships || [],
+      source: result.source || 'fallback',
+      mock: result.mock || false,
+      warning: result.warning,
+    });
+  } catch (err) {
+    return sendJson(res, 500, { ok: false, error: err.message });
+  }
+}
+
 async function handleSummary(req, res) {
   try {
     const body = await collectJson(req);
@@ -156,6 +304,10 @@ function serveStatic(req, res) {
 }
 
 const server = http.createServer((req, res) => {
+  if (req.method === 'POST' && (req.url || '').startsWith('/api/chat')) {
+    handleChat(req, res);
+    return;
+  }
   if (req.method === 'POST' && (req.url || '').startsWith('/api/summary')) {
     handleSummary(req, res);
     return;

@@ -195,6 +195,25 @@ function buildScholarshipSummaryInput(record = {}) {
   ].join('\n');
 }
 
+function localFallbackChat(message, scholarships = []) {
+  const top = scholarships.slice(0, 3);
+  if (!top.length) {
+    return {
+      provider: 'local-fallback',
+      mock: true,
+      reply: `'${message}' 조건으로 검색했지만 현재 DB에서 조건에 맞는 장학금을 찾지 못했어요. 필터를 조정하거나 공식 공고를 직접 확인해 주세요.`,
+      scholarships: [],
+    };
+  }
+  const list = top.map((s, i) => `${i + 1}. ${s.name} (${s.org}) — ${s.type}, 마감: ${s.deadline || '미정'}`).join('\n');
+  return {
+    provider: 'local-fallback',
+    mock: true,
+    reply: `[데모 응답] '${message}' 조건으로 찾은 장학금이에요. 공식 공고를 꼭 확인해 주세요.\n\n${list}`,
+    scholarships: top,
+  };
+}
+
 const api = {
   buildClovaSummaryPayload,
   buildScholarshipSummaryInput,
@@ -203,6 +222,7 @@ const api = {
   filterScholarships,
   inferApplicationStatus,
   localFallbackSummary,
+  localFallbackChat,
   parseKoreanWon,
 };
 

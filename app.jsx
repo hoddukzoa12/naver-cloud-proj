@@ -24,11 +24,6 @@ const TOP_LEVEL = ['chat', 'main', 'saved'];
 
 const CHAT_WELCOME = '안녕하세요, 장학레이더예요. 어떤 장학금이 필요한지 편하게 말씀해 주세요. 조건을 알려주시면 공식 공고를 먼저 확인해 맞는 공고를 찾아드릴게요.';
 const CHAT_CHIPS = ['등록금 지원이 필요해요', '생활비가 급해요', '이공계 전공이에요'];
-const CHAT_INTENTS = [
-  { label: '등록금 지원이 필요해요', reply: '등록금 부담을 덜어줄 공고를 찾았어요. 공식 공고 기준으로 정리했어요.', filter: { types: ['등록금'] } },
-  { label: '생활비가 급해요', reply: '생활비를 지원하는 공고예요. 마감이 가까운 순서로 보여드릴게요.', filter: { types: ['생활비'] } },
-  { label: '이공계 전공이에요', reply: '이공계 재학생이 지원할 수 있는 공고예요. 미검증 공고는 꼭 원문을 확인해 주세요.', filter: { keyword: '이공계' } },
-];
 
 const ROOT_VARS = {
   '--sr-font-scale': 1,
@@ -84,26 +79,34 @@ function App() {
 
   const openCard = (it) => { setDetailFrom(screen); setSelected(it); setScreen('detail'); };
 
-  const sendChat = (q) => {
+  const sendChat = async (q) => {
     const text = (q || '').trim();
-    if (!text) return;
+    if (!text || thinking) return;
     setChat(c => [...c, { role: 'user', text }]);
     setThinking(true);
-    clearTimeout(timer.current);
-    timer.current = setTimeout(() => {
-      const intent = CHAT_INTENTS.find(i => i.label === text);
-      const f = { ...DEFAULT_FILTERS, ...(intent ? intent.filter : { keyword: text }) };
-      const r = runSearch(f).slice(0, 3);
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: text }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
       setThinking(false);
       setChat(c => [...c, {
         role: 'ai',
-        text: r.length
-          ? (intent ? intent.reply : `'${text}' 조건으로 공고 ${r.length}건을 찾았어요. 공식 공고 기준으로 정리했어요.`)
-          : '조건에 맞는 공고를 찾지 못했어요. 다른 조건으로 다시 물어봐 주세요.',
-        cards: r,
-        chips: r.length ? null : CHAT_CHIPS,
+        text: data.reply || '답변을 가져오지 못했어요.',
+        cards: Array.isArray(data.scholarships) && data.scholarships.length ? data.scholarships.slice(0, 3) : null,
+        chips: (!data.scholarships || !data.scholarships.length) ? CHAT_CHIPS : null,
       }]);
-    }, 1100);
+    } catch {
+      setThinking(false);
+      setChat(c => [...c, {
+        role: 'ai',
+        text: '연결에 실패했어요. 잠시 후 다시 시도해 주세요.',
+        chips: CHAT_CHIPS,
+      }]);
+    }
   };
 
   const openSummary = () => {
