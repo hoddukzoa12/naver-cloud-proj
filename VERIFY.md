@@ -16,6 +16,9 @@ node --test tests/*.test.mjs
 
 ```text
 v24.12.0
+scholarship-core.js OK
+runbook.js OK
+server.js OK
 ✔ inferApplicationStatus classifies open, upcoming, and closed from absolute dates
 ✔ filterScholarships applies keyword, school, org type, student level, scholarship type, income band, minimum amount, and status filters
 ✔ filterScholarships treats all-level scholarships as matching undergraduate and preserves unverified demo entries when asked

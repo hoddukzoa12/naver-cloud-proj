@@ -125,8 +125,9 @@ async function handleSummary(req, res) {
 
 function staticFilePath(urlPath) {
   const decoded = decodeURIComponent(urlPath.split('?')[0]);
+  if (decoded === '/') return path.join(ROOT, 'index.html');
   const safePath = path.normalize(decoded).replace(/^([.][.][\/\\])+/, '');
-  const relative = safePath === '/' ? 'index.html' : safePath.replace(/^\//, '');
+  const relative = safePath.replace(/^[\/\\]/, '') || 'index.html';
   const fullPath = path.join(ROOT, relative);
   if (!fullPath.startsWith(ROOT)) return null;
   return fullPath;

@@ -2,9 +2,10 @@
 
 ## 프로젝트 개요
 
-- 이 프로젝트는 대학생 장학금 검색 MVP다.
-- k-skill `korean-scholarship-search`의 공식 공고 우선 원칙을 바탕으로 장학금 후보를 구조화한다.
-- CLOVA Studio 요약 API는 긴 모집요강을 짧게 요약하는 보조 기능으로만 사용한다.
+- 이 프로젝트는 HyperCLOVA X 기반 대학생 장학금 실시간 맞춤 검색 서비스다.
+- 사용자가 학교·학과·학자금 지원구간·학년 등 조건을 입력하면 HyperCLOVA X가 맞는 장학금을 추천한다.
+- k-skill `korean-scholarship-search`의 공식 공고 우선 원칙을 검색·정규화 전략의 뼈대로 사용한다.
+- CLOVA Studio 요약 API는 긴 모집요강을 짧게 요약하는 보조 기능으로 사용한다.
 
 ## 기술 규칙
 
@@ -12,8 +13,9 @@
 - 프론트엔드는 정적 HTML/CSS/JS로 유지한다.
 - 공통 필터 로직은 `scholarship-core.js`에 둔다.
 - CLOVA Studio API 키는 서버 환경변수에서만 읽고 브라우저 코드에 노출하지 않는다.
-- `/api/summary` 서버 프록시만 CLOVA Studio API를 호출한다.
-- API 키가 없으면 로컬 fallback 요약으로 데모가 계속 동작해야 한다.
+- `/api/chat` 서버 프록시만 HyperCLOVA X Chat API를 호출한다.
+- `/api/summary` 서버 프록시만 CLOVA Studio 요약 API를 호출한다.
+- API 키가 없으면 로컬 fallback으로 데모가 계속 동작해야 한다.
 
 ## 장학금 데이터 원칙
 
