@@ -128,46 +128,61 @@ function mapDbRow(r) {
     amountSemester: r.amount_semester,
     amountYear: r.amount_year,
     deadline: r.deadline,
-    verification_status: r.verification_status,
+    verification_status: r.source_url ? 'verified' : r.verification_status,
     eligibility: r.eligibility,
-    noticeUrl: r.notice_url,
-    applyUrl: r.apply_url,
+    noticeUrl: r.notice_url && r.notice_url !== 'https://www.kosaf.go.kr/'
+      ? r.notice_url
+      : `https://www.kosaf.go.kr/ko/scholar.do?pg=scholarship05_05_01`,
+    applyUrl: r.apply_url && r.apply_url !== 'https://www.kosaf.go.kr/'
+      ? r.apply_url
+      : `https://www.kosaf.go.kr/ko/scholar.do?pg=scholarship05_05_01`,
   };
 }
 
-// DB에서 메시지 키워드로 장학금 검색 (최대 10개)
+// DB에서 메시지 키워드로 장학금 검색
 async function searchScholarships(message) {
   if (!DB_AVAILABLE) return [];
+  // 메시지를 단어 단위로 분리해 각 키워드별로 OR 검색
+  const words = message.trim().split(/\s+/).filter(Boolean).slice(0, 5);
+  const conditions = words.map((_, i) => {
+    const p = `$${i + 1}`;
+    return `(name ILIKE ${p} OR org ILIKE ${p} OR type ILIKE ${p} OR tier ILIKE ${p} OR eligibility::text ILIKE ${p})`;
+  }).join(' OR ');
+  const params = words.map(w => `%${w}%`);
   try {
-    const kw = `%${message}%`;
-    const result = await dbQuery(
-      `SELECT id, name, org, type, status, tier, tier_min, tier_max,
-              amount_semester, amount_year, deadline, verification_status,
-              eligibility, notice_url, apply_url
-       FROM scholarships
-       WHERE status IN ('모집중', '예정')
-         AND (name ILIKE $1 OR org ILIKE $1 OR type ILIKE $1 OR eligibility::text ILIKE $1)
-       ORDER BY deadline ASC NULLS LAST
-       LIMIT 10`,
-      [kw],
-    );
-    return result.rows.map(mapDbRow);
-  } catch {
-    // 키워드 검색 실패 시 모집중 전체 반환
-    try {
+    if (conditions) {
       const result = await dbQuery(
         `SELECT id, name, org, type, status, tier, tier_min, tier_max,
                 amount_semester, amount_year, deadline, verification_status,
-                eligibility, notice_url, apply_url
+                eligibility, notice_url, apply_url, source_url, source_url
          FROM scholarships
          WHERE status IN ('모집중', '예정')
+           AND source_url IS NOT NULL
+           AND (${conditions})
          ORDER BY deadline ASC NULLS LAST
-         LIMIT 10`,
+         LIMIT 30`,
+        params,
       );
-      return result.rows.map(mapDbRow);
-    } catch {
-      return [];
+      if (result.rows.length > 0) return result.rows.map(mapDbRow);
     }
+  } catch { /* fall through */ }
+  // 키워드 매치 없거나 오류 → 모집중/예정 전체 반환
+  try {
+    const result = await dbQuery(
+      `SELECT id, name, org, type, status, tier, tier_min, tier_max,
+              amount_semester, amount_year, deadline, verification_status,
+              eligibility, notice_url, apply_url, source_url
+       FROM scholarships
+       WHERE status IN ('모집중', '예정')
+         AND source_url IS NOT NULL
+       ORDER BY
+         CASE status WHEN '모집중' THEN 1 ELSE 2 END,
+         deadline ASC NULLS LAST
+       LIMIT 20`,
+    );
+    return result.rows.map(mapDbRow);
+  } catch {
+    return [];
   }
 }
 
@@ -234,6 +249,34 @@ async function callClovaChat(message, scholarships) {
       ...localFallbackChat(message, scholarships),
       warning: `HyperCLOVA X 연결 오류: ${err.message}`,
     };
+  }
+}
+
+async function handleScholarships(req, res) {
+  if (!DB_AVAILABLE) {
+    return sendJson(res, 200, { ok: true, scholarships: [], source: 'fallback' });
+  }
+  try {
+    const url = new URL(req.url, `http://localhost`);
+    const status = url.searchParams.get('status') || '';
+    const whereClause = status
+      ? `WHERE source_url IS NOT NULL AND status = $1`
+      : `WHERE source_url IS NOT NULL`;
+    const params = status ? [status] : [];
+    const result = await dbQuery(
+      `SELECT id, name, org, type, status, tier, tier_min, tier_max,
+              amount_semester, amount_year, deadline, verification_status,
+              eligibility, notice_url, apply_url, source_url
+       FROM scholarships
+       ${whereClause}
+       ORDER BY
+         CASE status WHEN '모집중' THEN 1 WHEN '예정' THEN 2 ELSE 3 END,
+         deadline ASC NULLS LAST`,
+      params,
+    );
+    return sendJson(res, 200, { ok: true, scholarships: result.rows.map(mapDbRow), source: 'db' });
+  } catch (err) {
+    return sendJson(res, 200, { ok: true, scholarships: [], source: 'fallback', warning: err.message });
   }
 }
 
@@ -304,6 +347,10 @@ function serveStatic(req, res) {
 }
 
 const server = http.createServer((req, res) => {
+  if (req.method === 'GET' && (req.url || '').startsWith('/api/scholarships')) {
+    handleScholarships(req, res);
+    return;
+  }
   if (req.method === 'POST' && (req.url || '').startsWith('/api/chat')) {
     handleChat(req, res);
     return;
@@ -321,8 +368,8 @@ const server = http.createServer((req, res) => {
 });
 
 if (require.main === module) {
-  server.listen(PORT, '127.0.0.1', () => {
-    console.log(`Scholarship Radar running at http://127.0.0.1:${PORT}`);
+  server.listen(PORT, '0.0.0.0', () => {
+    console.log(`Scholarship Radar running at http://0.0.0.0:${PORT}`);
   });
 }
 

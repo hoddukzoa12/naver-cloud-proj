@@ -2,10 +2,10 @@
 const { MainScreen, FilterScreen, LoadingScreen, ResultsScreen, EmptyScreen,
         DetailScreen, SummarySheet, ChatScreen, SavedScreen, BottomTabBar,
         ChatMessage, DesktopShell } = window;
-const { SCHOLARSHIPS, DEFAULT_FILTERS, ddays } = window.SR_DATA;
+const { DEFAULT_FILTERS, ddays } = window.SR_DATA;
 
-function runSearch(f) {
-  return SCHOLARSHIPS.filter(it => {
+function runSearch(f, scholarships) {
+  return scholarships.filter(it => {
     if (f.status !== '전체' && it.status !== f.status) return false;
     if (f.types.length && !f.types.includes(it.type)) return false;
     if (!(it.tierMax >= f.tierMin && it.tierMin <= f.tierMax)) return false;
@@ -17,9 +17,6 @@ function runSearch(f) {
   });
 }
 
-const RECRUITING = SCHOLARSHIPS.filter(s => s.status === '모집중');
-const TOP_CARDS = [...RECRUITING].sort((a, b) => ddays(a.deadline) - ddays(b.deadline)).slice(0, 3);
-const DEMO_ITEM = SCHOLARSHIPS.find(s => s.id === 's3');
 const TOP_LEVEL = ['chat', 'main', 'saved'];
 
 const CHAT_WELCOME = '안녕하세요, 장학레이더예요. 어떤 장학금이 필요한지 편하게 말씀해 주세요. 조건을 알려주시면 공식 공고를 먼저 확인해 맞는 공고를 찾아드릴게요.';
@@ -48,16 +45,41 @@ function useViewMode() {
 function App() {
   const viewMode = useViewMode();
   const [screen, setScreen] = React.useState('chat');
+  const [scholarships, setScholarships] = React.useState(window.SR_DATA.SCHOLARSHIPS);
   const [filters, setFilters] = React.useState(DEFAULT_FILTERS);
-  const [results, setResults] = React.useState(TOP_CARDS);
+  const [results, setResults] = React.useState([]);
   const [selected, setSelected] = React.useState(null);
   const [detailFrom, setDetailFrom] = React.useState('chat');
-  const [summary, setSummary] = React.useState(null); // { mode: 'loading'|'done'|'error' }
+  const [summary, setSummary] = React.useState(null);
   const [summaryText, setSummaryText] = React.useState('');
   const [toast, setToast] = React.useState(null);
   const [chat, setChat] = React.useState([{ role: 'ai', text: CHAT_WELCOME, chips: CHAT_CHIPS }]);
   const [thinking, setThinking] = React.useState(false);
   const timer = React.useRef(null);
+
+  const recruiting = scholarships.filter(s => s.status === '모집중');
+  const topCards = [...recruiting].sort((a, b) => ddays(a.deadline) - ddays(b.deadline)).slice(0, 3);
+  const demoItem = scholarships.find(s => s.id === 's3') || scholarships[0] || null;
+
+  React.useEffect(() => {
+    fetch('/api/scholarships', { cache: 'no-store' })
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(data => {
+        if (data.ok && Array.isArray(data.scholarships) && data.scholarships.length > 0) {
+          setScholarships(data.scholarships);
+          const rec = data.scholarships.filter(s => s.status === '모집중');
+          const top = [...rec].sort((a, b) => ddays(a.deadline) - ddays(b.deadline)).slice(0, 3);
+          setResults(top);
+        } else {
+          const rec = window.SR_DATA.SCHOLARSHIPS.filter(s => s.status === '모집중');
+          setResults([...rec].sort((a, b) => ddays(a.deadline) - ddays(b.deadline)).slice(0, 3));
+        }
+      })
+      .catch(() => {
+        const rec = window.SR_DATA.SCHOLARSHIPS.filter(s => s.status === '모집중');
+        setResults([...rec].sort((a, b) => ddays(a.deadline) - ddays(b.deadline)).slice(0, 3));
+      });
+  }, []);
 
   const showToast = (msg) => {
     setToast(msg);
@@ -71,7 +93,7 @@ function App() {
     setScreen('loading');
     clearTimeout(timer.current);
     timer.current = setTimeout(() => {
-      const r = runSearch(use);
+      const r = runSearch(use, scholarships);
       setResults(r);
       setScreen(r.length ? 'results' : 'empty');
     }, 900);
@@ -112,7 +134,7 @@ function App() {
   const openSummary = () => {
     setSummary({ mode: 'loading' });
     setSummaryText('');
-    const item = selected || DEMO_ITEM;
+    const item = selected || demoItem;
     const text = item
       ? [item.name, item.org, ...item.eligibility].join('\n')
       : '장학금 공고문';
@@ -130,14 +152,20 @@ function App() {
       .catch(() => setSummary({ mode: 'error' }));
   };
 
-  const noticeAction = () => showToast('데모 링크입니다 — 실제 페이지로 이동하지 않습니다');
-  const applyAction = () => showToast('데모용 화면입니다 — 신청은 공식 창구에서 진행하세요');
+  const noticeAction = () => {
+    const url = (selected || demoItem)?.noticeUrl;
+    if (url) window.open(url, '_blank', 'noreferrer');
+  };
+  const applyAction = () => {
+    const url = (selected || demoItem)?.applyUrl;
+    if (url) window.open(url, '_blank', 'noreferrer');
+  };
 
   const ctx = {
     screen, setScreen, filters, setFilters, results, selected, detailFrom,
     summary, setSummary, summaryText, toast, chat, thinking,
     doSearch, openCard, sendChat, openSummary, noticeAction, applyAction,
-    recruiting: RECRUITING, topCards: TOP_CARDS, demoItem: DEMO_ITEM, rootVars: ROOT_VARS,
+    recruiting, topCards, demoItem, rootVars: ROOT_VARS,
   };
 
   return (
@@ -151,12 +179,12 @@ function MobileShell({ ctx }) {
   const { screen, setScreen, filters, setFilters, results, selected, detailFrom,
     summary, setSummary, summaryText, toast, chat, thinking,
     doSearch, openCard, sendChat, openSummary, noticeAction, applyAction,
-    topCards, demoItem } = ctx;
+    recruiting, topCards, demoItem } = ctx;
 
   let body;
   if (screen === 'chat') body = <ChatScreen messages={chat} thinking={thinking} onSend={sendChat} onOpenCard={openCard} />;
   else if (screen === 'saved') body = <SavedScreen onGoChat={() => setScreen('chat')} />;
-  else if (screen === 'main') body = <MainScreen filters={filters} setFilters={setFilters} recruitingCount={RECRUITING.length} topCards={topCards} onSearch={() => doSearch(filters)} onOpenFilter={() => setScreen('filter')} onOpenCard={openCard} />;
+  else if (screen === 'main') body = <MainScreen filters={filters} setFilters={setFilters} recruitingCount={recruiting.length} topCards={topCards} onSearch={() => doSearch(filters)} onOpenFilter={() => setScreen('filter')} onOpenCard={openCard} />;
   else if (screen === 'filter') body = <FilterScreen filters={filters} onApply={(f) => doSearch(f)} onReset={() => setFilters(DEFAULT_FILTERS)} onClose={() => setScreen('main')} />;
   else if (screen === 'loading') body = <LoadingScreen onBack={() => setScreen('main')} />;
   else if (screen === 'results') body = <ResultsScreen filters={filters} results={results} onOpenFilter={() => setScreen('filter')} onOpenCard={openCard} onBack={() => setScreen('main')} />;

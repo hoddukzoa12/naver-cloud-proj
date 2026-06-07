@@ -1,5 +1,5 @@
 'use strict';
-// scraper.js — kosaf.go.kr 크롤러. 사용: node scraper.js [--dry-run]
+// scraper.js — odcloud.kr 장학금 공공데이터 API 수집. 사용: node scraper.js [--dry-run]
 
 const path = require('node:path');
 const fs = require('node:fs');
@@ -22,137 +22,87 @@ const ROOT = __dirname;
 })();
 
 const DRY_RUN = process.argv.includes('--dry-run');
-const CLOVA_CHAT_ENDPOINT = 'https://clovastudio.stream.ntruss.com/v1/chat-completions/HCX-DASH-001';
+const API_BASE = 'https://api.odcloud.kr/api/15028252/v1/uddi:1f3a4185-ba91-4a2c-bf04-bac01d2dc8ce';
+const PER_PAGE = 100;
 
-// kosaf.go.kr 장학금 목록 페이지 목록
-const KOSAF_PAGES = [
-  {
-    url: 'https://www.kosaf.go.kr/ko/scholar.do?pg=scholarship05_11_01',
-    label: '푸른등대 기부장학금',
-  },
-  {
-    url: 'https://www.kosaf.go.kr/ko/scholar.do?pg=scholarship02_01_01',
-    label: '국가장학금',
-  },
-];
-
-function bearerValue(rawKey) {
-  if (!rawKey) return '';
-  return rawKey.startsWith('Bearer ') ? rawKey : `Bearer ${rawKey}`;
+// 모집시작일/모집종료일 → status
+function inferStatus(startStr, endStr) {
+  if (!endStr) return '예정';
+  const today = new Date().toISOString().slice(0, 10);
+  const end = endStr.slice(0, 10);
+  if (end < today) return '마감';
+  if (startStr && startStr.slice(0, 10) > today) return '예정';
+  return '모집중';
 }
 
-async function fetchPage(url) {
-  try {
-    const res = await fetch(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; ScholarshipRadarBot/1.0)',
-        'Accept': 'text/html,application/xhtml+xml',
-        'Accept-Language': 'ko-KR,ko;q=0.9',
-      },
-      signal: AbortSignal.timeout(15000),
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return await res.text();
-  } catch (err) {
-    console.warn(`[scraper] fetch 실패 (${url}): ${err.message}`);
-    return null;
+// 소득기준 텍스트에서 구간 추출 (예: "1구간~8구간" → {min:1, max:8})
+function parseTier(text) {
+  if (!text) return { tier: '전 구간', min: 1, max: 10 };
+  const match = text.match(/(\d+)\s*구간?\s*[~～\-]\s*(\d+)\s*구간/);
+  if (match) {
+    return { tier: `${match[1]}~${match[2]}구간`, min: Number(match[1]), max: Number(match[2]) };
   }
-}
-
-function extractTextFromHtml(html) {
-  if (!html) return '';
-  return html
-    .replace(/<script[\s\S]*?<\/script>/gi, '')
-    .replace(/<style[\s\S]*?<\/style>/gi, '')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/\s{2,}/g, ' ')
-    .trim()
-    .slice(0, 4000);
-}
-
-// HyperCLOVA X로 원문 텍스트 → 장학금 JSON 정규화
-async function normalizeWithHyperClova(rawText, label) {
-  const apiKey = process.env.CLOVA_STUDIO_API_KEY;
-  if (!apiKey) {
-    return mockNormalize(rawText, label);
+  const single = text.match(/(\d+)\s*구간/);
+  if (single) {
+    const n = Number(single[1]);
+    return { tier: `${n}구간 이하`, min: 1, max: n };
   }
-
-  const prompt = `아래는 ${label} 장학금 공고 페이지의 텍스트입니다.
-이 텍스트에서 장학금 정보를 추출해 다음 JSON 형식으로 반환하세요.
-반드시 유효한 JSON만 반환하고, 마크다운 코드 블록 없이 순수 JSON만 출력하세요.
-
-{
-  "name": "장학금명",
-  "org": "운영기관명",
-  "type": "등록금|생활비|혼합",
-  "status": "모집중|예정|마감",
-  "tier": "구간 텍스트 (예: 1~8구간)",
-  "tier_min": 1,
-  "tier_max": 8,
-  "amount_semester": 0,
-  "amount_year": 0,
-  "deadline": "YYYY-MM-DD",
-  "eligibility": ["조건1", "조건2"]
+  return { tier: '전 구간', min: 1, max: 10 };
 }
 
-텍스트:
-${rawText.slice(0, 2000)}`;
-
-  try {
-    const requestId = crypto.randomUUID();
-    const res = await fetch(CLOVA_CHAT_ENDPOINT, {
-      method: 'POST',
-      headers: {
-        Authorization: bearerValue(apiKey),
-        'X-NCP-CLOVASTUDIO-REQUEST-ID': requestId,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        messages: [
-          { role: 'system', content: '당신은 장학금 공고 정보를 JSON으로 추출하는 전문가입니다.' },
-          { role: 'user', content: prompt },
-        ],
-        maxTokens: 512,
-        temperature: 0.1,
-        topP: 0.8,
-        repeatPenalty: 1.0,
-      }),
-      signal: AbortSignal.timeout(20000),
-    });
-    const data = await res.json().catch(() => ({}));
-    const content = data?.result?.message?.content || '';
-    const jsonMatch = content.match(/\{[\s\S]*\}/);
-    if (jsonMatch) return JSON.parse(jsonMatch[0]);
-  } catch (err) {
-    console.warn(`[scraper] HyperCLOVA X 정규화 실패: ${err.message}`);
-  }
-  return mockNormalize(rawText, label);
+// 지원내역 텍스트에서 금액(원) 추출
+function parseAmount(text) {
+  if (!text) return 0;
+  // "등록금 전액" → 0 (금액 불명)
+  const match = text.match(/([\d,]+)\s*만?\s*원/);
+  if (!match) return 0;
+  const raw = Number(match[1].replace(/,/g, ''));
+  // "만 원" 단위면 ×10000
+  return text.includes('만') && raw < 10000 ? raw * 10000 : raw;
 }
 
-// API 키 없을 때 로컬 mock 정규화
-function mockNormalize(rawText, label) {
-  const hasDeadline = rawText.match(/(\d{4})[.\-/](\d{1,2})[.\-/](\d{1,2})/);
-  const deadline = hasDeadline
-    ? `${hasDeadline[1]}-${String(hasDeadline[2]).padStart(2, '0')}-${String(hasDeadline[3]).padStart(2, '0')}`
-    : null;
+// 공공데이터 row → DB 레코드
+function mapApiRow(row) {
+  const status = inferStatus(row['모집시작일'], row['모집종료일']);
+  const tierInfo = parseTier(row['소득기준 상세내용'] || '');
+  const amountSemester = parseAmount(row['지원내역 상세내용'] || '');
+
+  const eligibility = [];
+  if (row['자격제한 상세내용']) eligibility.push(row['자격제한 상세내용'].slice(0, 200));
+  if (row['소득기준 상세내용']) eligibility.push(row['소득기준 상세내용'].slice(0, 200));
+  if (row['신청접수일 등 상세내용']) eligibility.push(row['신청접수일 등 상세내용'].slice(0, 100));
+
+  const type = row['학자금유형구분'] || '혼합';
+  const deadline = row['모집종료일'] ? row['모집종료일'].slice(0, 10) : null;
+  const id = `od-${crypto.createHash('md5').update(String(row['번호'] || row['상품명'] || '')).digest('hex').slice(0, 8)}`;
 
   return {
-    name: label,
-    org: '한국장학재단',
-    type: rawText.includes('생활비') ? '생활비' : '등록금',
-    status: rawText.includes('마감') ? '마감' : '모집중',
-    tier: '1~8구간',
-    tier_min: 1,
-    tier_max: 8,
-    amount_semester: 0,
-    amount_year: 0,
+    id,
+    name: (row['상품명'] || '').slice(0, 200),
+    org: (row['운영기관명'] || '').slice(0, 100),
+    type: ['등록금', '생활비', '혼합'].includes(type) ? type : '혼합',
+    status,
+    tier: tierInfo.tier,
+    tier_min: tierInfo.min,
+    tier_max: tierInfo.max,
+    amount_semester: amountSemester,
+    amount_year: amountSemester * 2,
     deadline,
-    eligibility: ['한국장학재단 공식 공고 확인 필요'],
+    eligibility: eligibility.filter(Boolean),
+    notice_url: 'https://www.kosaf.go.kr/ko/scholar.do?pg=scholarship05_05_01',
+    apply_url: 'https://www.kosaf.go.kr/ko/scholar.do?pg=scholarship05_05_01',
+    source_url: API_BASE,
   };
+}
+
+async function fetchPage(serviceKey, page) {
+  const url = `${API_BASE}?serviceKey=${encodeURIComponent(serviceKey)}&page=${page}&perPage=${PER_PAGE}`;
+  const res = await fetch(url, {
+    headers: { Accept: 'application/json' },
+    signal: AbortSignal.timeout(20000),
+  });
+  if (!res.ok) throw new Error(`API HTTP ${res.status}`);
+  return res.json();
 }
 
 const UPSERT_SQL = `
@@ -173,71 +123,60 @@ ON CONFLICT (id) DO UPDATE SET
 `;
 
 async function runScraper() {
+  const serviceKey = process.env.OPENAPI_DECODING;
+  if (!serviceKey) {
+    console.error('[scraper] OPENAPI_DECODING 환경변수가 없습니다.');
+    process.exit(1);
+  }
+
   let dbQuery = null;
   if (!DRY_RUN) {
     const db = require('./db.js');
     if (!db.DB_AVAILABLE) {
-      console.log('[scraper] DB not configured — dry-run mode로 전환');
+      console.log('[scraper] DB 미설정 — dry-run 모드로 전환');
     } else {
       dbQuery = db.query;
     }
   }
 
-  const results = [];
+  console.log('[scraper] 1페이지 수집 중...');
+  const first = await fetchPage(serviceKey, 1);
+  const total = first.totalCount || 0;
+  const pages = Math.ceil(total / PER_PAGE);
+  console.log(`[scraper] 전체 ${total}건 / ${pages}페이지`);
 
-  for (const page of KOSAF_PAGES) {
-    console.log(`[scraper] 수집 중: ${page.label} (${page.url})`);
-    const html = await fetchPage(page.url);
-    const rawText = extractTextFromHtml(html);
+  const allRows = [...(first.data || [])];
+  for (let p = 2; p <= pages; p++) {
+    console.log(`[scraper] ${p}/${pages} 페이지 수집 중...`);
+    const page = await fetchPage(serviceKey, p);
+    allRows.push(...(page.data || []));
+  }
 
-    if (!rawText) {
-      console.warn(`[scraper] 빈 응답 — ${page.label} 건너뜀`);
-      continue;
-    }
+  const records = allRows.map(mapApiRow);
+  let upserted = 0;
 
-    const normalized = await normalizeWithHyperClova(rawText, page.label);
-    const id = `kosaf-${crypto.createHash('md5').update(page.url).digest('hex').slice(0, 8)}`;
-
-    const record = {
-      id,
-      name: normalized.name || page.label,
-      org: normalized.org || '한국장학재단',
-      type: normalized.type || '혼합',
-      status: normalized.status || '모집중',
-      tier: normalized.tier || '전 구간',
-      tier_min: Number(normalized.tier_min) || 1,
-      tier_max: Number(normalized.tier_max) || 10,
-      amount_semester: Number(normalized.amount_semester) || 0,
-      amount_year: Number(normalized.amount_year) || 0,
-      deadline: normalized.deadline || null,
-      eligibility: Array.isArray(normalized.eligibility) ? normalized.eligibility : [],
-      notice_url: page.url,
-      apply_url: 'https://www.kosaf.go.kr/',
-      source_url: page.url,
-    };
-
-    results.push(record);
-    console.log(`  ✓ ${record.id}: ${record.name} (${record.status})`);
-
+  for (const r of records) {
     if (dbQuery) {
       try {
         await dbQuery(UPSERT_SQL, [
-          record.id, record.name, record.org, record.type, record.status,
-          record.tier, record.tier_min, record.tier_max,
-          record.amount_semester, record.amount_year, record.deadline,
-          'unverified', record.eligibility, record.notice_url,
-          record.apply_url, record.source_url,
+          r.id, r.name, r.org, r.type, r.status, r.tier,
+          r.tier_min, r.tier_max, r.amount_semester, r.amount_year,
+          r.deadline, 'verified', r.eligibility,
+          r.notice_url, r.apply_url, r.source_url,
         ]);
-        console.log(`  → DB upsert 완료`);
+        upserted++;
       } catch (err) {
-        console.error(`  → DB upsert 실패: ${err.message}`);
+        console.error(`  → upsert 실패 (${r.id}): ${err.message}`);
       }
     }
   }
 
-  console.log(`\n[scraper] 완료 — ${results.length}건 처리`);
-  if (DRY_RUN) console.log('[scraper] dry-run 결과:', JSON.stringify(results, null, 2));
-  return results;
+  console.log(`\n[scraper] 완료 — ${records.length}건 처리${dbQuery ? `, ${upserted}건 DB upsert` : ' (dry-run)'}`);
+  if (DRY_RUN) {
+    console.log('[scraper] 샘플 (처음 3건):');
+    console.log(JSON.stringify(records.slice(0, 3), null, 2));
+  }
+  return records;
 }
 
 if (require.main === module) {
@@ -249,4 +188,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = { runScraper, normalizeWithHyperClova, mockNormalize };
+module.exports = { runScraper, mapApiRow, inferStatus, parseTier };

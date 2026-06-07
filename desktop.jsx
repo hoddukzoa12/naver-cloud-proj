@@ -129,13 +129,11 @@ function filterSummaryDT(f) {
 }
 
 function DesktopHome({ ctx }) {
-  const { screen, filters, results, doSearch, setFilters, openCard } = ctx;
+  const { screen, filters, results, doSearch, setFilters, openCard, recruiting } = ctx;
   const { DEFAULT_FILTERS } = window.SR_DATA;
   const loading = screen === 'loading';
   const empty = screen === 'empty';
   const searched = screen === 'results' || screen === 'empty' || screen === 'loading';
-  const { SCHOLARSHIPS } = window.SR_DATA;
-  const recruiting = SCHOLARSHIPS.filter(s => s.status === '모집중');
   const list = searched ? results : recruiting;
   return (
     <div className="dt-home">
